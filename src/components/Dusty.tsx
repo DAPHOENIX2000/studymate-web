@@ -23,18 +23,19 @@ interface DustyProps {
   body?: boolean;  // kept for API compat
 }
 
-// Map each variant to the correct SVG file
+// Map each variant to the correct PNG file
+// 1=neutral, 2=thinking, 3=surprised/excited, 4=sad, 5=love, 6=curious, 7=sleepy
 const VARIANT_SRC: Record<DustyVariant, string> = {
-  default:   "/dusty/1.svg",
-  thinking:  "/dusty/2.svg",
-  squint:    "/dusty/2.svg", // closest: thinking
-  happy:     "/dusty/3.svg",
-  winking:   "/dusty/3.svg", // closest: happy
-  sad:       "/dusty/4.svg",
-  love:      "/dusty/5.svg",
-  curious:   "/dusty/6.svg",
-  surprised: "/dusty/6.svg", // closest: curious
-  sleepy:    "/dusty/7.svg",
+  default:   "/dusty/1.png",
+  winking:   "/dusty/1.png", // closest: neutral
+  squint:    "/dusty/1.png", // closest: neutral
+  thinking:  "/dusty/2.png",
+  surprised: "/dusty/3.png",
+  happy:     "/dusty/3.png", // closest: excited/surprised
+  sad:       "/dusty/4.png",
+  love:      "/dusty/5.png",
+  curious:   "/dusty/6.png",
+  sleepy:    "/dusty/7.png",
 };
 
 // Per-variant animation personality
