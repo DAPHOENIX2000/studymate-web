@@ -13,7 +13,7 @@ export function QuizView() {
   const subject = useApp((s) => s.subjects.find((x) => x.id === s.currentSubjectId));
   const questions =
     useApp((s) => (s.currentSubjectId ? s.questionsBySubject[s.currentSubjectId] : undefined)) ??
-    MOCK_QUESTIONS;
+    [];
   const answered = useApp((s) => s.answeredInSession);
   const sessionCorrect = useApp((s) => s.quizSessionCorrect);
   const sessionTotal = useApp((s) => s.quizSessionTotal);
@@ -49,7 +49,7 @@ export function QuizView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slides: subject.slides.slice(0, 8),
-          model: useApp.getState().settings.ollamaModel || "llama3.2:3b",
+          apiKey: useApp.getState().settings.geminiKey,
           count: 6,
         }),
       })

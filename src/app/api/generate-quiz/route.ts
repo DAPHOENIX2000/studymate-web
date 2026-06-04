@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
-
 /**
- * Generate quiz questions from a batch of slides via Ollama.
- * POST: { slides, model?, count? }
+ * Generate quiz questions via Gemini.
+ * POST: { slides, apiKey, count? }
  * Returns: { questions: QuizQuestion[] }
  */
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { slides, model = "llama3.2:3b", count = 5 } = body;
+  const { slides, apiKey, count = 5 } = body;
 
   if (!Array.isArray(slides) || slides.length === 0) {
     return NextResponse.json({ error: "slides array required" }, { status: 400 });
+  }
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "No Gemini API key. Add one in Settings → Google Gemini." },
+      { status: 400 },
+    );
   }
 
   const context = slides
@@ -27,28 +31,49 @@ export async function POST(req: NextRequest) {
 
 ${context}
 
-Return ONLY a JSON array (no markdown, no explanation), each item shaped like:
-{"type":"mcq"|"tf","difficulty":1|2|3,"question":"...","options":["..."],"correctAnswer":"...","explanation":"...","topic":"...","slideIndex":1}
+Return ONLY a JSON array (no markdown, no explanation), each item shaped exactly like:
+{"type":"mcq","difficulty":1,"question":"...","options":["A","B","C","D"],"correctAnswer":"A","explanation":"...","topic":"...","slideIndex":1}
 
-Mix easy/medium/hard. Mix mcq (4 options) and tf. Questions should test MEANING and APPLICATION, not surface trivia.`;
+Rules:
+- type is "mcq" (4 options) or "tf" (options: ["True","False"])
+- difficulty: 1=easy, 2=medium, 3=hard
+- correctAnswer must be one of the strings in options
+- Mix easy/medium/hard and mcq/tf
+- Questions must test MEANING and APPLICATION of the slide content, not trivia`;
 
   try {
-    const r = await fetch(`${OLLAMA_BASE}/api/generate`, {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model, prompt, stream: false, format: "json",
-        options: { temperature: 0.7 },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          responseMimeType: "application/json",
+        },
       }),
     });
+
     if (!r.ok) {
-      return NextResponse.json({ error: `Ollama returned ${r.status}` }, { status: 502 });
+      const detail = await r.text().catch(() => "");
+      let hint = "";
+      if (r.status === 400 || r.status === 401 || r.status === 403)
+        hint = " Check your Gemini API key in Settings.";
+      else if (r.status === 429) hint = " Rate limit hit — wait a moment and try again.";
+      return NextResponse.json(
+        { error: `Gemini returned ${r.status}.${hint}`, questions: [] },
+        { status: 502 },
+      );
     }
+
     const data = await r.json();
-    let raw = data.response || "[]";
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+
     let parsed: any;
-    try { parsed = JSON.parse(raw); }
-    catch {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
       const m = raw.match(/\[[\s\S]*\]/);
       parsed = m ? JSON.parse(m[0]) : [];
     }
@@ -62,7 +87,7 @@ Mix easy/medium/hard. Mix mcq (4 options) and tf. Questions should test MEANING 
       .map((q: any, i: number) => ({
         id: `gen-${Date.now()}-${i}`,
         type: q.type === "tf" ? "tf" : "mcq",
-        difficulty: [1,2,3].includes(q.difficulty) ? q.difficulty : 2,
+        difficulty: [1, 2, 3].includes(q.difficulty) ? q.difficulty : 2,
         question: String(q.question),
         options: q.options.map(String),
         correctAnswer: String(q.correctAnswer),
@@ -70,10 +95,14 @@ Mix easy/medium/hard. Mix mcq (4 options) and tf. Questions should test MEANING 
         topic: String(q.topic || "General"),
         slideIndex: typeof q.slideIndex === "number" ? q.slideIndex : 1,
       }));
+
     return NextResponse.json({ questions });
   } catch (e) {
     return NextResponse.json(
-      { error: `Could not generate quiz: ${e instanceof Error ? e.message : "unknown"}`, questions: [] },
+      {
+        error: `Could not generate quiz: ${e instanceof Error ? e.message : "unknown"}`,
+        questions: [],
+      },
       { status: 503 },
     );
   }

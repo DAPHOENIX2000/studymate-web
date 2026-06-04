@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
         return na - nb;
       });
 
+    // Budget: keep total base64 image data under ~3MB so the full JSON response
+    // stays well below Vercel's 4.5MB serverless response limit.
+    const IMAGE_BUDGET_BYTES = 3 * 1024 * 1024;
+    let imageBytesUsed = 0;
+
     // Cache images so we don't re-encode duplicates
     const imageCache: Record<string, { mime: string; data: string; size: number }> = {};
     async function loadImage(path: string) {
@@ -140,6 +145,9 @@ export async function POST(req: NextRequest) {
           const slideW = emu2px(s.w);
           const slideH = emu2px(s.h);
           if (slideW < 80 || slideH < 80) continue;
+          // Skip if we've already hit the total image budget for this request
+          if (imageBytesUsed + img.size > IMAGE_BUDGET_BYTES) continue;
+          imageBytesUsed += img.size;
           images.push({ src: `data:${img.mime};base64,${img.data}` });
         }
       }

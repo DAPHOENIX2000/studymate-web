@@ -208,12 +208,13 @@ function SlideQuizPanel({ slide, accentColor }: { slide: Slide; accentColor: str
     setSelected(null);
     setSubmitted(false);
     try {
+      const settings = useApp.getState().settings;
       const r = await fetch("/api/generate-quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slides: [slide],
-          model: useApp.getState().settings.ollamaModel || "llama3.2:3b",
+          apiKey: settings.geminiKey,
           count: 3,
         }),
       });
