@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts loaded via <link> in app/layout.tsx (Satoshi from Fontshare, Inter + JetBrains Mono from Google) */
+
+:root {
+  --grain-opacity: 0.025;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #070b14;
+  color: #f5f7fa;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Display font for big text */
+.font-display {
+  font-family: "Satoshi", "Inter", ui-sans-serif, system-ui;
+  font-feature-settings: "ss01";
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Selection */
+::selection {
+  background: rgba(0, 245, 196, 0.3);
+  color: #f5f7fa;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #00f5c4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Grain overlay applied to layered backdrops */
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/></svg>");
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Aurora ambient backdrop — used on the main app */
+.aurora-bg {
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 245, 196, 0.18), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(255, 107, 157, 0.10), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 0% 80%, rgba(167, 139, 250, 0.08), transparent 60%),
+    #070b14;
+}
+
+/* Glass surface — used for cards on top of aurora */
+.glass {
+  background: rgba(16, 24, 39, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-strong {
+  background: rgba(22, 32, 51, 0.85);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* Subtle inner highlight for elevated surfaces */
+.inner-highlight {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Animated shimmer for loading skeletons */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerSlide 1.6s linear infinite;
+}
+@keyframes shimmerSlide {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Typing dots */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   LIGHT MODE — premium ivory/cream aesthetic, not just "dark inverted"
+   Inspired by Notion, Linear's light theme, editorial design systems
+   ──────────────────────────────────────────────────────────────── */
+.light, .light body {
+  background: #FAFAF7;
+  color: #1A1D26;
+}
+.light .aurora-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 200, 162, 0.08), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(255, 107, 157, 0.05), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 0% 80%, rgba(167, 139, 250, 0.04), transparent 60%),
+    #FAFAF7;
+}
+.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-color: rgba(0, 0, 0, 0.06);
+  color: #1A1D26;
+}
+.light .glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(28px) saturate(200%);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1A1D26;
+}
+.light .inner-highlight {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* Background tier remapping for light */
+.light .bg-bg-base { background-color: #FAFAF7 !important; }
+.light .bg-bg-panel\/60, .light .bg-bg-panel\/40 { background-color: rgba(255, 255, 255, 0.7) !important; }
+.light .bg-bg-card { background-color: #FFFFFF !important; }
+.light .bg-bg-card\/40 { background-color: rgba(255, 255, 255, 0.6) !important; }
+.light .bg-bg-card\/80 { background-color: rgba(255, 255, 255, 0.9) !important; }
+.light .bg-bg-elevated { background-color: #F4F4EE !important; }
+.light .bg-bg-hover { background-color: #F0F0EA !important; }
+.light .bg-bg-active { background-color: #E8E8E0 !important; }
+
+/* Borders in light mode */
+.light .border-border-subtle { border-color: rgba(0, 0, 0, 0.06) !important; }
+.light .border-border { border-color: rgba(0, 0, 0, 0.10) !important; }
+.light .border-border-strong { border-color: rgba(0, 0, 0, 0.18) !important; }
+
+/* Text colors in light mode */
+.light .text-ink { color: #1A1D26 !important; }
+.light .text-ink-dim { color: #3A3F4D !important; }
+.light .text-ink-muted { color: #6B7180 !important; }
+.light .text-ink-faint { color: #9098A6 !important; }
+
+/* Accent tweaks — slightly darker teal reads better on light */
+.light .text-accent { color: #00A88A !important; }
+.light .bg-accent { background-color: #00A88A !important; }
+.light .bg-accent\/15 { background-color: rgba(0, 168, 138, 0.12) !important; }
+.light .border-accent { border-color: #00A88A !important; }
+
+/* Light-mode scrollbar */
+.light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.10); }
+.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
+
+/* Light mode selection */
+.light ::selection {
+  background: rgba(0, 168, 138, 0.25);
+  color: #1A1D26;
+}
+
+/* CJK / Arabic — improve mixed-language readability */
+[lang="zh"], [lang="ja"], [lang="ko"] {
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+    "Noto Sans CJK SC", sans-serif;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+}
+
+[lang="ar"], [lang="he"] {
+  direction: rtl;
+  font-family: "Inter", "Segoe UI", "Tahoma", "Arial", sans-serif;
+}
+
+/* Markdown rendering inside chat */
+.prose-chat p { margin-bottom: 0.5rem; }
+.prose-chat p:last-child { margin-bottom: 0; }
+.prose-chat strong { color: #fff; font-weight: 600; }
+.prose-chat code {
+  background: rgba(255,255,255,0.08);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85em;
+}
+.prose-chat ul, .prose-chat ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+.prose-chat li { margin: 0.125rem 0; }
+.light .prose-chat code { background: rgba(0,0,0,0.06); }
