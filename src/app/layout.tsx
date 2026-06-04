@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "StudyMate AI — Your PowerPoints, taught by Dusty",
   description: "Modern AI tutor for your lecture slides. Built by Yassine Achouak.",
+  icons: { icon: "/dusty.png", apple: "/dusty.png" },
 };
 
 export default function RootLayout({

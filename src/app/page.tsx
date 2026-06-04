@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
 import { Splash } from "@/components/Splash";
@@ -18,11 +18,6 @@ export default function Home() {
   const [splashVisible, setSplashVisible] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setSplashVisible(false), 1800);
-    return () => clearTimeout(t);
-  }, []);
-
   // Settings is always available, all other subject-scoped views need a subject
   const effectiveView =
     view === "settings"
@@ -33,7 +28,7 @@ export default function Home() {
 
   return (
     <main className="h-screen flex overflow-hidden aurora-bg">
-      <Splash visible={splashVisible} />
+      <Splash visible={splashVisible} onEnter={() => setSplashVisible(false)} />
 
       <Sidebar onAboutClick={() => setAboutOpen(true)} />
 

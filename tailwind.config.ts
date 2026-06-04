@@ -8,12 +8,12 @@ const config: Config = {
       colors: {
         // Brand palette — deep navy + electric teal + warm rose
         bg: {
-          base: "#070B14",
-          panel: "#0E1422",
-          card: "#101827",
-          elevated: "#162033",
-          hover: "#1C2740",
-          active: "#243150",
+          base: "#080808",
+          panel: "#101010",
+          card: "#161616",
+          elevated: "#1C1C1C",
+          hover: "#222222",
+          active: "#2A2A2A",
         },
         border: {
           subtle: "rgba(255,255,255,0.06)",
