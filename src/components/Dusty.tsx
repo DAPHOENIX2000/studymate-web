@@ -1,6 +1,5 @@
 "use client";
-import { motion, useMotionValue, useSpring } from "framer-motion";
-import { useEffect } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export type DustyVariant =
@@ -19,72 +18,76 @@ interface DustyProps {
   size?: number;
   variant?: DustyVariant;
   className?: string;
-  /** If true, character bobs gently (use on hero screens) */
-  alive?: boolean;
-  /** Optional teal glow */
+  alive?: boolean; // kept for API compat
   glow?: boolean;
-  /** Ignored — kept for API compatibility */
-  body?: boolean;
+  body?: boolean;  // kept for API compat
 }
 
-// Per-variant animation config
+// Map each variant to the correct SVG file
+const VARIANT_SRC: Record<DustyVariant, string> = {
+  default:   "/dusty/1.svg",
+  thinking:  "/dusty/2.svg",
+  squint:    "/dusty/2.svg", // closest: thinking
+  happy:     "/dusty/3.svg",
+  winking:   "/dusty/3.svg", // closest: happy
+  sad:       "/dusty/4.svg",
+  love:      "/dusty/5.svg",
+  curious:   "/dusty/6.svg",
+  surprised: "/dusty/6.svg", // closest: curious
+  sleepy:    "/dusty/7.svg",
+};
+
+// Per-variant animation personality
 const VARIANT_ANIM: Record<DustyVariant, {
-  rotate?: number[];
   y?: number[];
+  rotate?: number[];
   scale?: number[];
-  duration?: number;
+  duration: number;
   filter?: string;
 }> = {
-  default:   { y: [0, -3, 0],          duration: 3.5 },
-  curious:   { rotate: [-4, 4, -4],    y: [0, -4, 0], duration: 2.8 },
-  happy:     { y: [0, -6, 0],          scale: [1, 1.04, 1], duration: 2.2 },
-  love:      { y: [0, -5, 0],          scale: [1, 1.06, 1], duration: 2.0, filter: "brightness(1.08) saturate(1.2)" },
-  thinking:  { rotate: [-3, 3, -3],    duration: 2.4 },
-  surprised: { scale: [1, 1.08, 1],    duration: 1.4 },
-  sad:       { y: [0, 2, 0],           rotate: [-2, 2, -2], duration: 4.0, filter: "brightness(0.85) saturate(0.8)" },
-  winking:   { rotate: [-6, 0, -6],    y: [0, -3, 0], duration: 2.6 },
-  sleepy:    { y: [0, 3, 0],           duration: 5.0, filter: "brightness(0.9) saturate(0.7)" },
-  squint:    { rotate: [-2, 2, -2],    duration: 3.0 },
+  default:   { y: [0, -5, 0],          duration: 3.5 },
+  curious:   { y: [0, -6, 0], rotate: [-4, 4, -4],   duration: 2.6 },
+  happy:     { y: [0, -10, 0], scale: [1, 1.05, 1],   duration: 2.0 },
+  love:      { y: [0, -8, 0],  scale: [1, 1.07, 1],   duration: 1.9 },
+  thinking:  { rotate: [-4, 4, -4],                    duration: 2.4 },
+  surprised: { scale: [1, 1.10, 1], y: [0, -4, 0],    duration: 1.3 },
+  sad:       { y: [0, 4, 0],   rotate: [-2, 2, -2],   duration: 4.5, filter: "brightness(0.82) saturate(0.6)" },
+  winking:   { rotate: [-6, 0, -6], y: [0, -5, 0],    duration: 2.4 },
+  sleepy:    { y: [0, 6, 0],   rotate: [-3, 3, -3],   duration: 5.5, filter: "brightness(0.75) saturate(0.5)" },
+  squint:    { rotate: [-2, 2, -2],                    duration: 3.0 },
 };
 
 export function Dusty({
   size = 80,
   variant = "default",
   className,
-  alive = false,
   glow = false,
 }: DustyProps) {
+  const src = VARIANT_SRC[variant];
   const cfg = VARIANT_ANIM[variant];
 
-  // Build framer-motion animate object from config
   const animate: Record<string, any> = {};
   if (cfg.y)      animate.y      = cfg.y;
   if (cfg.rotate) animate.rotate = cfg.rotate;
   if (cfg.scale)  animate.scale  = cfg.scale;
 
-  const transition = {
-    duration: cfg.duration ?? 3,
-    repeat: Infinity,
-    ease: "easeInOut" as const,
-  };
-
   return (
     <motion.div
       className={cn(
         "relative inline-flex shrink-0 align-middle select-none",
-        glow && "drop-shadow-[0_0_28px_rgba(0,245,196,0.45)]",
+        glow && "drop-shadow-[0_0_32px_rgba(255,255,255,0.18)]",
         className,
       )}
-      style={{
-        width: size,
-        height: size,
-        filter: cfg.filter,
-      }}
+      style={{ width: size, height: size, filter: cfg.filter }}
       animate={animate}
-      transition={transition}
+      transition={{
+        duration: cfg.duration,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
     >
       <img
-        src="/dusty.png"
+        src={src}
         alt="Dusty"
         width={size}
         height={size}
@@ -94,8 +97,7 @@ export function Dusty({
           objectFit: "contain",
           pointerEvents: "none",
           userSelect: "none",
-          // Drop shadow to make it feel present on dark backgrounds
-          filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))",
+          filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.6))",
         }}
         draggable={false}
       />
