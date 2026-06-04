@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Upload, Star, Trash2, MoreHorizontal, Clock } from "lucide-react";
 import { useState, useMemo, useRef } from "react";
 import { useApp } from "@/lib/store";
+import { parsePptxFile } from "@/lib/parse-pptx-client";
 import { Dusty } from "./Dusty";
 import { FirstRunBanner } from "./FirstRunBanner";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -78,18 +79,11 @@ export function LibraryView() {
   function handleUpload(files: FileList | null) {
     if (!files || !files[0]) return;
     const file = files[0];
-    const formData = new FormData();
-    formData.append("file", file);
-
     setDragOver(false);
 
-    fetch("/api/parse-pptx", { method: "POST", body: formData })
-      .then((r) => r.json())
+    // Parse entirely in the browser — no upload, no server size limits
+    parsePptxFile(file)
       .then((data) => {
-        if (data.error) {
-          alert(`Could not parse: ${data.error}`);
-          return;
-        }
         const accents = ["#00F5C4", "#A78BFA", "#FF6B9D", "#FBBF24", "#60A5FA", "#34D399"];
         const subjectId = `s-${Date.now()}`;
         const newSubject: import("@/lib/types").Subject = {
@@ -105,31 +99,31 @@ export function LibraryView() {
         useApp.getState().addSubject(newSubject);
 
         // Async: kick off glossary extraction in the background.
-        // This can take 30-60s and is best-effort — silently fails if AI unavailable.
-        fetch("/api/generate-glossary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slides: data.slides,
-            model: useApp.getState().settings.ollamaModel || "llama3.2:3b",
-          }),
-        })
-          .then((r) => r.json())
-          .then((g) => {
-            if (g.glossary && g.glossary.length > 0) {
-              // Patch the subject with glossary
-              useApp.setState((state) => ({
-                subjects: state.subjects.map((s) =>
-                  s.id === subjectId ? { ...s, glossary: g.glossary } : s,
-                ),
-              }));
-            }
+        // Best-effort — silently fails if AI unavailable.
+        const settings = useApp.getState().settings;
+        if (settings.geminiKey) {
+          fetch("/api/generate-glossary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              slides: data.slides,
+              apiKey: settings.geminiKey,
+            }),
           })
-          .catch(() => {
-            // Glossary is a nice-to-have; never fail loudly
-          });
+            .then((r) => r.json())
+            .then((g) => {
+              if (g.glossary && g.glossary.length > 0) {
+                useApp.setState((state) => ({
+                  subjects: state.subjects.map((s) =>
+                    s.id === subjectId ? { ...s, glossary: g.glossary } : s,
+                  ),
+                }));
+              }
+            })
+            .catch(() => {});
+        }
       })
-      .catch((e) => alert(`Upload failed: ${e.message}`));
+      .catch((e) => alert(`Could not parse PowerPoint: ${e.message}`));
   }
 
   return (

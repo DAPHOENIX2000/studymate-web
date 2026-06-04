@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const OLLAMA_BASE = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
-
 /**
- * Generate a glossary of key terms from slide content via Ollama.
- * POST: { slides, model? }
+ * Generate a glossary of key terms from slide content via Gemini.
+ * POST: { slides, apiKey }
  * Returns: { glossary: [{term, definition}] }
  *
  * Best-effort: if AI fails or returns garbage, returns empty glossary.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { slides, model = "llama3.2:3b" } = body;
+  const { slides, apiKey } = body;
+
   if (!Array.isArray(slides) || slides.length === 0) {
     return NextResponse.json({ glossary: [] });
   }
+  if (!apiKey) {
+    return NextResponse.json({ glossary: [], warning: "No API key — glossary skipped." });
+  }
 
-  // Build context — first 15 slides max
   const context = slides
     .slice(0, 15)
     .map((s: any) => {
@@ -35,19 +36,25 @@ Slides:
 ${context}`;
 
   try {
-    const r = await fetch(`${OLLAMA_BASE}/api/generate`, {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model, prompt, stream: false, format: "json",
-        options: { temperature: 0.3 },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          responseMimeType: "application/json",
+        },
       }),
       signal: AbortSignal.timeout(60000),
     });
-    if (!r.ok) return NextResponse.json({ glossary: [], warning: `Ollama ${r.status}` });
+
+    if (!r.ok) return NextResponse.json({ glossary: [], warning: `Gemini ${r.status}` });
 
     const data = await r.json();
-    let raw = data.response || "[]";
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+
     let parsed: any;
     try { parsed = JSON.parse(raw); }
     catch {
@@ -58,6 +65,7 @@ ${context}`;
       parsed = parsed.glossary || parsed.terms || [];
     }
     if (!Array.isArray(parsed)) parsed = [];
+
     const glossary = parsed
       .filter((g: any) => g && g.term && g.definition)
       .map((g: any) => ({
@@ -65,6 +73,7 @@ ${context}`;
         definition: String(g.definition).trim(),
       }))
       .slice(0, 50);
+
     return NextResponse.json({ glossary });
   } catch (e) {
     return NextResponse.json({
