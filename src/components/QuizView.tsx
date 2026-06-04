@@ -48,9 +48,9 @@ export function QuizView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slides: subject.slides.slice(0, 8),
+          slides: subject.slides,
           apiKey: useApp.getState().settings.geminiKey,
-          count: 6,
+          count: 10,
         }),
       })
         .then((r) => r.json())

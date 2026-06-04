@@ -20,14 +20,14 @@ export async function POST(req: NextRequest) {
   }
 
   const context = slides
-    .slice(0, 10)
+    .slice(0, 40)
     .map((s: any, i: number) => {
       const text = s.blocks ? s.blocks.map((b: any) => b.text).join(" | ") : s.body || "";
       return `Slide ${i + 1}: ${s.title}\n${text}`;
     })
     .join("\n\n");
 
-  const prompt = `You are a quiz generator. Based on these lecture slides, generate ${count} varied quiz questions.
+  const prompt = `You are a quiz generator. Based on these lecture slides, generate ${count} varied quiz questions that cover ALL slides evenly.
 
 ${context}
 
@@ -38,8 +38,10 @@ Rules:
 - type is "mcq" (4 options) or "tf" (options: ["True","False"])
 - difficulty: 1=easy, 2=medium, 3=hard
 - correctAnswer must be one of the strings in options
+- Spread questions across ALL slides — don't cluster on just the first few
 - Mix easy/medium/hard and mcq/tf
-- Questions must test MEANING and APPLICATION of the slide content, not trivia`;
+- Questions must test MEANING and APPLICATION of the slide content, not surface trivia
+- explanation must be 3-5 sentences: state why the correct answer is right, why wrong answers are wrong, and give a brief real-world context or analogy to help the student remember`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;

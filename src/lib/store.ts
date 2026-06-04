@@ -53,6 +53,7 @@ interface AppState {
   toggleFavorite: (id: string) => void;
   addChatMessage: (subjectId: string, m: ChatMessage) => void;
   addQuestions: (subjectId: string, qs: QuizQuestion[]) => void;
+  addFlashcards: (subjectId: string, cards: Flashcard[]) => void;
   markAnswered: (questionId: string) => void;
   recordQuizAnswer: (correct: boolean) => void;
   resetQuizSession: () => void;
@@ -122,6 +123,14 @@ export const useApp = create<AppState>()(
           questionsBySubject: {
             ...state.questionsBySubject,
             [subjectId]: [...(state.questionsBySubject[subjectId] || []), ...qs],
+          },
+        })),
+
+      addFlashcards: (subjectId, cards) =>
+        set((state) => ({
+          flashcardsBySubject: {
+            ...state.flashcardsBySubject,
+            [subjectId]: [...(state.flashcardsBySubject[subjectId] || []), ...cards],
           },
         })),
 
