@@ -7,6 +7,7 @@ import { LibraryView } from "@/components/LibraryView";
 import { StudyView } from "@/components/StudyView";
 import { QuizView } from "@/components/QuizView";
 import { FlashcardsView } from "@/components/FlashcardsView";
+import { NotesView } from "@/components/NotesView";
 import { ProgressView } from "@/components/ProgressView";
 import { SettingsView } from "@/components/SettingsView";
 import { AboutModal } from "@/components/AboutModal";
@@ -25,6 +26,9 @@ export default function Home() {
       : !currentSubjectId && view !== "library"
         ? "library"
         : view;
+
+  // views that require a subject
+  const subjectViews = ["study", "quiz", "flashcards", "notes", "progress"];
 
   return (
     <main className="h-screen flex overflow-hidden aurora-bg">
@@ -45,6 +49,7 @@ export default function Home() {
           {effectiveView === "study" && <StudyView />}
           {effectiveView === "quiz" && <QuizView />}
           {effectiveView === "flashcards" && <FlashcardsView />}
+          {effectiveView === "notes" && <NotesView />}
           {effectiveView === "progress" && <ProgressView />}
           {effectiveView === "settings" && <SettingsView />}
         </motion.div>

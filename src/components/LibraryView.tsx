@@ -1,9 +1,10 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Upload, Star, Trash2, MoreHorizontal, Clock } from "lucide-react";
+import { Search, Upload, Star, Trash2, MoreHorizontal, Clock, Youtube, FileText, Link } from "lucide-react";
 import { useState, useMemo, useRef } from "react";
 import { useApp } from "@/lib/store";
 import { parsePptxFile } from "@/lib/parse-pptx-client";
+import { parsePdfFile } from "@/lib/parse-pdf-client";
 import { Dusty } from "./Dusty";
 import { FirstRunBanner } from "./FirstRunBanner";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -52,6 +53,10 @@ export function LibraryView() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "favorites" | "recent">("all");
   const [dragOver, setDragOver] = useState(false);
+  const [youtubeInput, setYoutubeInput] = useState("");
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -76,54 +81,80 @@ export function LibraryView() {
     [subjects],
   );
 
+  function addSubjectFromData(data: { name: string; slides: any[] }) {
+    const accents = ["#00F5C4", "#A78BFA", "#FF6B9D", "#FBBF24", "#60A5FA", "#34D399"];
+    const subjectId = `s-${Date.now()}`;
+    const newSubject: import("@/lib/types").Subject = {
+      id: subjectId,
+      name: data.name,
+      slideCount: data.slides.length,
+      mastery: 0,
+      accentColor: accents[subjects.length % accents.length],
+      createdAt: new Date().toISOString(),
+      slides: data.slides,
+      keywords: extractKeywords(data.slides),
+    };
+    useApp.getState().addSubject(newSubject);
+
+    const settings = useApp.getState().settings;
+    if (settings.geminiKey) {
+      fetch("/api/generate-glossary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides: data.slides, apiKey: settings.geminiKey }),
+      })
+        .then((r) => r.json())
+        .then((g) => {
+          if (g.glossary?.length > 0) {
+            useApp.setState((state) => ({
+              subjects: state.subjects.map((s) =>
+                s.id === subjectId ? { ...s, glossary: g.glossary } : s,
+              ),
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  async function handleYoutubeSubmit() {
+    if (!youtubeInput.trim()) return;
+    const apiKey = useApp.getState().settings.geminiKey;
+    if (!apiKey) {
+      setYoutubeError("Add a Gemini API key in Settings first.");
+      return;
+    }
+    setYoutubeLoading(true);
+    setYoutubeError(null);
+    try {
+      const r = await fetch("/api/process-youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeInput.trim(), apiKey }),
+      });
+      const data = await r.json();
+      if (data.error) { setYoutubeError(data.error); return; }
+      addSubjectFromData(data);
+      setYoutubeInput("");
+      setShowYoutubeInput(false);
+    } catch (e: any) {
+      setYoutubeError(e.message || "Failed to process video.");
+    } finally {
+      setYoutubeLoading(false);
+    }
+  }
+
   function handleUpload(files: FileList | null) {
     if (!files || !files[0]) return;
     const file = files[0];
     setDragOver(false);
 
-    // Parse entirely in the browser — no upload, no server size limits
-    parsePptxFile(file)
-      .then((data) => {
-        const accents = ["#00F5C4", "#A78BFA", "#FF6B9D", "#FBBF24", "#60A5FA", "#34D399"];
-        const subjectId = `s-${Date.now()}`;
-        const newSubject: import("@/lib/types").Subject = {
-          id: subjectId,
-          name: data.name,
-          slideCount: data.slides.length,
-          mastery: 0,
-          accentColor: accents[subjects.length % accents.length],
-          createdAt: new Date().toISOString(),
-          slides: data.slides,
-          keywords: extractKeywords(data.slides),
-        };
-        useApp.getState().addSubject(newSubject);
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
+    const parser = isPdf ? parsePdfFile(file) : parsePptxFile(file);
 
-        // Async: kick off glossary extraction in the background.
-        // Best-effort — silently fails if AI unavailable.
-        const settings = useApp.getState().settings;
-        if (settings.geminiKey) {
-          fetch("/api/generate-glossary", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              slides: data.slides,
-              apiKey: settings.geminiKey,
-            }),
-          })
-            .then((r) => r.json())
-            .then((g) => {
-              if (g.glossary && g.glossary.length > 0) {
-                useApp.setState((state) => ({
-                  subjects: state.subjects.map((s) =>
-                    s.id === subjectId ? { ...s, glossary: g.glossary } : s,
-                  ),
-                }));
-              }
-            })
-            .catch(() => {});
-        }
-      })
-      .catch((e) => alert(`Could not parse PowerPoint: ${e.message}`));
+    parser
+      .then((data) => addSubjectFromData(data))
+      .catch((e) => alert(`Could not parse file: ${e.message}`));
   }
 
   return (
@@ -152,8 +183,8 @@ export function LibraryView() {
           >
             <div className="text-center">
               <Upload className="mx-auto mb-3 text-accent" size={48} />
-              <div className="font-display text-2xl font-bold text-ink">Drop your PowerPoint</div>
-              <div className="text-sm text-ink-muted mt-1">Dusty will start reading it</div>
+              <div className="font-display text-2xl font-bold text-ink">Drop your file here</div>
+              <div className="text-sm text-ink-muted mt-1">PowerPoint or PDF — Dusty will read it</div>
             </div>
           </motion.div>
         )}
@@ -180,17 +211,61 @@ export function LibraryView() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* YouTube URL input */}
+            <AnimatePresence>
+              {showYoutubeInput && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  className="flex items-center gap-2 overflow-hidden"
+                >
+                  <input
+                    type="url"
+                    value={youtubeInput}
+                    onChange={(e) => setYoutubeInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleYoutubeSubmit()}
+                    placeholder="Paste YouTube URL…"
+                    className="h-9 px-3 rounded-md glass border border-border-subtle text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors w-56"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleYoutubeSubmit}
+                    disabled={youtubeLoading || !youtubeInput.trim()}
+                    className="h-9 px-3 rounded-md bg-red-600 text-white font-semibold text-sm disabled:opacity-50 hover:bg-red-500 transition-colors"
+                  >
+                    {youtubeLoading ? "Processing…" : "Import"}
+                  </button>
+                  <button onClick={() => { setShowYoutubeInput(false); setYoutubeError(null); }} className="h-9 px-2 text-ink-muted hover:text-ink text-sm">✕</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {youtubeError && (
+              <span className="text-xs text-rose-400">{youtubeError}</span>
+            )}
+
+            {/* YouTube button */}
+            <button
+              onClick={() => setShowYoutubeInput((v) => !v)}
+              className="h-9 px-3 rounded-md text-sm flex items-center gap-2 glass border border-border-subtle text-ink-muted hover:text-ink hover:border-red-500 transition-all"
+              title="Import from YouTube"
+            >
+              <Youtube size={15} />
+              <span className="hidden sm:inline">YouTube</span>
+            </button>
+
+            {/* File upload (PPTX + PDF) */}
             <button
               onClick={() => fileRef.current?.click()}
               className="group relative overflow-hidden inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
             >
               <Upload size={16} />
-              <span>Add PowerPoint</span>
+              <span>Add file</span>
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pptx"
+                accept=".pptx,.pdf"
                 className="hidden"
                 onChange={(e) => handleUpload(e.target.files)}
               />
@@ -471,7 +546,7 @@ function AddCard({ onClick }: { onClick: () => void }) {
         <Upload size={20} />
       </div>
       <div className="font-display font-semibold text-ink-dim group-hover:text-ink transition-colors">
-        Add a PowerPoint
+        Add PPTX or PDF
       </div>
       <div className="text-xs text-ink-faint mt-1">Drag & drop or click</div>
     </motion.button>
@@ -486,7 +561,7 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
         Hmm, no subjects yet.
       </h3>
       <p className="text-ink-muted mt-2 max-w-md">
-        Drop a PowerPoint anywhere on this page, or use the button below.
+        Drop a PowerPoint or PDF anywhere, paste a YouTube link, or use the button.
         Dusty will read it and become your personal tutor.
       </p>
       <button

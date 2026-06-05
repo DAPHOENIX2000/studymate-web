@@ -7,6 +7,7 @@ import {
   Brain,
   Layers,
   TrendingUp,
+  FileText,
   Sun,
   Moon,
   PanelLeftClose,
@@ -32,6 +33,7 @@ const SUBJECT_NAV: NavItem[] = [
   { id: "study", label: "Study", icon: BookOpen, requiresSubject: true },
   { id: "quiz", label: "Quiz", icon: Brain, requiresSubject: true },
   { id: "flashcards", label: "Flashcards", icon: Layers, requiresSubject: true },
+  { id: "notes", label: "Notes", icon: FileText, requiresSubject: true },
   { id: "progress", label: "Progress", icon: TrendingUp, requiresSubject: true },
 ];
 

@@ -10,7 +10,7 @@ import {
   MOCK_STUDY_SESSIONS,
 } from "./mock-data";
 
-export type ViewName = "library" | "study" | "quiz" | "flashcards" | "progress" | "settings";
+export type ViewName = "library" | "study" | "quiz" | "flashcards" | "notes" | "progress" | "settings";
 
 export type AIProvider = "ollama" | "gemini" | "claude";
 
