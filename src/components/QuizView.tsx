@@ -38,33 +38,76 @@ export function QuizView() {
     return unanswered[0] || null;
   }, [questions, answered]);
 
-  // Auto-generate more questions when we run low (< 3 unanswered)
+  // Auto-generate MORE questions only when running low mid-session (not on first open)
   useEffect(() => {
     if (!subject || generating) return;
     const unansweredCount = questions.filter((q) => !answered.has(q.id)).length;
-    if (unansweredCount < 3) {
-      setGenerating(true);
-      fetch("/api/generate-quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slides: subject.slides,
-          apiKey: useApp.getState().settings.geminiKey,
-          count: 10,
-        }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.questions && data.questions.length > 0) {
-            addQuestions(subject.id, data.questions);
-          }
-        })
-        .catch(() => {})
-        .finally(() => setGenerating(false));
+    // Only auto-refill when user has already answered some and is running low
+    if (questions.length > 0 && unansweredCount < 3) {
+      generateQuestions();
     }
-  }, [subject, questions, answered, generating, addQuestions]);
+  }, [subject, questions, answered, generating]);
+
+  function generateQuestions() {
+    if (!subject || generating) return;
+    const apiKey = useApp.getState().settings.geminiKey;
+    if (!apiKey) return;
+    setGenerating(true);
+
+    // Limit slides & text to keep payload small and fast
+    const slides = (subject.slides || []).slice(0, 20).map((s: any) => ({
+      title: s.title,
+      blocks: (s.blocks || []).slice(0, 8).map((b: any) => ({
+        text: String(b.text || "").slice(0, 200),
+      })),
+    }));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 40000); // 40s client timeout
+
+    fetch("/api/generate-quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slides, apiKey, count: 8 }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.questions?.length > 0) addQuestions(subject.id, data.questions);
+      })
+      .catch(() => {})
+      .finally(() => { clearTimeout(timeout); setGenerating(false); });
+  }
 
   if (!subject) return null;
+
+  // No questions yet — show start button (don't auto-generate)
+  if (questions.length === 0 && !generating) {
+    return (
+      <div className="flex-1 flex items-center justify-center aurora-bg">
+        <div className="text-center max-w-sm">
+          <Dusty size={110} variant="curious" />
+          <h3 className="font-display text-2xl mt-5">Ready to be quizzed?</h3>
+          <p className="text-ink-muted mt-2 text-sm">
+            Dusty will generate questions from your slides. Takes about 15 seconds.
+          </p>
+          {!useApp.getState().settings.geminiKey ? (
+            <p className="text-rose-400 mt-4 text-sm">Add a Gemini API key in Settings first.</p>
+          ) : (
+            <button
+              onClick={generateQuestions}
+              className="mt-6 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
+            >
+              Generate Quiz
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (generating && questions.length === 0) return <QuizLoading />;
+
   if (!question) {
     return generating ? <QuizLoading /> : <QuizAllDone onReset={() => resetSession()} />;
   }

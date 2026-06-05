@@ -25,47 +25,51 @@ export function FlashcardsView() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
 
-  // Auto-generate flashcards when there are none for this subject
-  useEffect(() => {
-    if (!subject || !subjectId || cards.length > 0 || generating) return;
-    if (!subject.slides || subject.slides.length === 0) return;
+  function generate() {
+    if (!subject || !subjectId || generating) return;
     const apiKey = useApp.getState().settings.geminiKey;
     if (!apiKey) return;
 
     setGenerating(true);
     setGenError(null);
+
+    // Limit slides & text to keep payload small
+    const slides = (subject.slides || []).slice(0, 30).map((s: any) => ({
+      title: s.title,
+      blocks: (s.blocks || []).slice(0, 6).map((b: any) => ({
+        text: String(b.text || "").slice(0, 200),
+      })),
+    }));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+
     fetch("/api/generate-flashcards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slides: subject.slides,
-        apiKey,
-        cardsPerSlide: 2,
-      }),
+      body: JSON.stringify({ slides, apiKey, cardsPerSlide: 2 }),
+      signal: controller.signal,
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.flashcards && data.flashcards.length > 0) {
-          addFlashcards(subjectId, data.flashcards);
-        } else {
-          setGenError(data.error || "No flashcards generated — try again.");
-        }
+        if (data.flashcards?.length > 0) addFlashcards(subjectId, data.flashcards);
+        else setGenError(data.error || "No flashcards generated — try again.");
       })
-      .catch((e) => setGenError(e.message || "Failed to generate flashcards."))
-      .finally(() => setGenerating(false));
-  }, [subject, subjectId, cards.length, generating, addFlashcards]);
+      .catch((e) => setGenError(e.message === "signal is aborted due to timeout" ? "Timed out — try again." : (e.message || "Failed.")))
+      .finally(() => { clearTimeout(timeout); setGenerating(false); });
+  }
 
   if (!subject) return null;
 
   if (generating) return <FlashcardsGenerating slideCount={subject.slides?.length ?? 0} />;
 
-  if (genError) return <FlashcardsError error={genError} onRetry={() => setGenError(null)} />;
+  if (genError) return <FlashcardsError error={genError} onRetry={generate} />;
 
   if (cards.length === 0) {
-    // No slides loaded or no API key
     if (!subject.slides || subject.slides.length === 0) return <FlashcardsNoSlides />;
     if (!useApp.getState().settings.geminiKey) return <FlashcardsNeedKey />;
-    return <FlashcardsEmpty />;
+    // Show generate button — don't auto-fire
+    return <FlashcardsStart onGenerate={generate} />;
   }
 
   const card = cards[idx % cards.length];
@@ -226,6 +230,26 @@ function CardFace({ side, children }: { side: "front" | "back"; children: React.
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function FlashcardsStart({ onGenerate }: { onGenerate: () => void }) {
+  return (
+    <div className="flex-1 flex items-center justify-center aurora-bg">
+      <div className="text-center max-w-sm">
+        <Dusty size={110} variant="curious" />
+        <h3 className="font-display text-2xl mt-5">Ready to make flashcards?</h3>
+        <p className="text-ink-muted mt-2 text-sm">
+          Dusty will write cards covering your whole deck. Takes about 20 seconds.
+        </p>
+        <button
+          onClick={onGenerate}
+          className="mt-6 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
+        >
+          Generate Flashcards
+        </button>
+      </div>
     </div>
   );
 }
