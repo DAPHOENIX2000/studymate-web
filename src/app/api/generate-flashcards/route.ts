@@ -59,7 +59,8 @@ Return ONLY a JSON array (no markdown), each item shaped exactly like:
       let hint = "";
       if (r.status === 400 || r.status === 401 || r.status === 403)
         hint = " Check your Gemini API key in Settings.";
-      else if (r.status === 429) hint = " Rate limit hit — wait a moment and try again.";
+      else if (r.status === 429) hint = " Rate limit — wait 1-2 minutes and try again.";
+      else if (r.status === 503 || r.status === 502) hint = " Gemini is temporarily overloaded — try again in a few seconds.";
       return NextResponse.json(
         { error: `Gemini returned ${r.status}.${hint}`, flashcards: [] },
         { status: 502 },

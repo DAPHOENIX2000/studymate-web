@@ -286,15 +286,24 @@ function FlashcardsGenerating({ slideCount }: { slideCount: number }) {
 }
 
 function FlashcardsError({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const isOverloaded = error.includes("503") || error.includes("502") || error.includes("overload");
+  const isRateLimit = error.includes("429") || error.includes("Rate limit") || error.includes("busy");
   return (
     <div className="flex-1 flex items-center justify-center aurora-bg">
-      <div className="text-center max-w-md">
+      <div className="text-center max-w-md px-6">
         <Dusty size={100} variant="sad" />
         <h3 className="font-display text-2xl mt-4">Couldn't generate flashcards</h3>
         <p className="text-rose-400 mt-2 text-sm">{error}</p>
+        {(isOverloaded || isRateLimit) && (
+          <p className="text-ink-muted mt-2 text-xs max-w-xs mx-auto">
+            {isOverloaded
+              ? "Gemini's servers are temporarily overloaded. Wait a few seconds and try again — it usually resolves quickly."
+              : "Gemini's free tier limit hit. Wait 1-2 minutes and try again."}
+          </p>
+        )}
         <button
           onClick={onRetry}
-          className="mt-6 px-5 py-2 rounded-md bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all"
+          className="mt-5 px-5 py-2.5 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all"
         >
           Try again
         </button>
