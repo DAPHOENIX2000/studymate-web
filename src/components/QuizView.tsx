@@ -27,6 +27,7 @@ export function QuizView() {
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     resetSession();
@@ -51,11 +52,18 @@ export function QuizView() {
   function generateQuestions() {
     if (!subject || generating) return;
     const apiKey = useApp.getState().settings.geminiKey;
-    if (!apiKey) return;
-    setGenerating(true);
+    if (!apiKey) { setGenError("Add a Gemini API key in Settings first."); return; }
 
-    // Limit slides & text to keep payload small and fast
-    const slides = (subject.slides || []).slice(0, 20).map((s: any) => ({
+    const rawSlides = subject.slides || [];
+    if (rawSlides.length === 0) {
+      setGenError("Slides not loaded — go to Library and re-upload your PowerPoint or PDF first.");
+      return;
+    }
+
+    setGenerating(true);
+    setGenError(null);
+
+    const slides = rawSlides.slice(0, 20).map((s: any) => ({
       title: s.title,
       blocks: (s.blocks || []).slice(0, 8).map((b: any) => ({
         text: String(b.text || "").slice(0, 200),
@@ -63,7 +71,7 @@ export function QuizView() {
     }));
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 40000); // 40s client timeout
+    const timeout = setTimeout(() => controller.abort(), 40000);
 
     fetch("/api/generate-quiz", {
       method: "POST",
@@ -73,33 +81,60 @@ export function QuizView() {
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.questions?.length > 0) addQuestions(subject.id, data.questions);
+        if (data.questions?.length > 0) {
+          addQuestions(subject.id, data.questions);
+        } else {
+          setGenError(data.error || "No questions generated. Try again.");
+        }
       })
-      .catch(() => {})
+      .catch((e) => {
+        if (e?.name === "AbortError") setGenError("Timed out — try again.");
+        else setGenError("Failed to reach Gemini. Check your API key and try again.");
+      })
       .finally(() => { clearTimeout(timeout); setGenerating(false); });
   }
 
   if (!subject) return null;
 
-  // No questions yet — show start button (don't auto-generate)
+  // No questions yet — show start screen
   if (questions.length === 0 && !generating) {
+    const hasSlides = (subject.slides || []).length > 0;
+    const hasKey = !!useApp.getState().settings.geminiKey;
     return (
       <div className="flex-1 flex items-center justify-center aurora-bg">
-        <div className="text-center max-w-sm">
-          <Dusty size={110} variant="curious" />
-          <h3 className="font-display text-2xl mt-5">Ready to be quizzed?</h3>
-          <p className="text-ink-muted mt-2 text-sm">
-            Dusty will generate questions from your slides. Takes about 15 seconds.
-          </p>
-          {!useApp.getState().settings.geminiKey ? (
-            <p className="text-rose-400 mt-4 text-sm">Add a Gemini API key in Settings first.</p>
+        <div className="text-center max-w-sm px-6">
+          <Dusty size={110} variant={hasSlides ? "curious" : "sleepy"} />
+          <h3 className="font-display text-2xl mt-5">
+            {hasSlides ? "Ready to be quizzed?" : "Slides not loaded"}
+          </h3>
+
+          {!hasSlides ? (
+            <>
+              <p className="text-ink-muted mt-2 text-sm">
+                Slides aren't saved between sessions. Go back to <strong>Library</strong> and re-upload your file — then come back here.
+              </p>
+            </>
+          ) : !hasKey ? (
+            <p className="text-ink-muted mt-2 text-sm">
+              Go to <strong>Settings</strong> and add your free Gemini API key first.
+            </p>
           ) : (
-            <button
-              onClick={generateQuestions}
-              className="mt-6 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
-            >
-              Generate Quiz
-            </button>
+            <>
+              <p className="text-ink-muted mt-2 text-sm">
+                Dusty will generate questions from your slides. ~15 seconds.
+              </p>
+              {genError && (
+                <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm">
+                  {genError}
+                </div>
+              )}
+              <button
+                onClick={generateQuestions}
+                className="mt-5 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
+              >
+                Generate Quiz
+              </button>
+            </>
           )}
         </div>
       </div>

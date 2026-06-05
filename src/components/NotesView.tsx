@@ -14,11 +14,12 @@ export function NotesView() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!subject || !subject.slides || subject.slides.length === 0) return;
+    if (!subject) return;
+    if (!subject.slides || subject.slides.length === 0) return; // slides not loaded
     const apiKey = useApp.getState().settings.geminiKey;
     if (!apiKey || notes) return;
     generate(subject.slides, apiKey);
-  }, [subject]);
+  }, [subject?.id]); // only re-run when subject changes, not on every render
 
   function generate(slides: any[], apiKey: string) {
     setLoading(true);
@@ -31,9 +32,12 @@ export function NotesView() {
       .then((r) => r.json())
       .then((data) => {
         if (data.notes) setNotes(data.notes);
-        else setError(data.error || "Could not generate notes.");
+        else setError(data.error || "Could not generate notes — try again.");
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        if (e?.name === "AbortError") setError("Timed out — try again.");
+        else setError("Failed to reach Gemini. Check your API key in Settings.");
+      })
       .finally(() => setLoading(false));
   }
 
@@ -52,10 +56,12 @@ export function NotesView() {
   if (!subject.slides || subject.slides.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center aurora-bg">
-        <div className="text-center">
+        <div className="text-center max-w-sm px-6">
           <Dusty size={90} variant="sleepy" />
-          <h3 className="font-display text-xl mt-4">No slides loaded</h3>
-          <p className="text-ink-muted mt-2 text-sm">Re-upload the PowerPoint from the Library.</p>
+          <h3 className="font-display text-xl mt-4">Slides not loaded</h3>
+          <p className="text-ink-muted mt-2 text-sm">
+            Slides aren't saved between sessions. Go to <strong>Library</strong> and re-upload your PowerPoint or PDF — then come back here.
+          </p>
         </div>
       </div>
     );

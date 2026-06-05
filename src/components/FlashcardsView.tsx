@@ -28,13 +28,19 @@ export function FlashcardsView() {
   function generate() {
     if (!subject || !subjectId || generating) return;
     const apiKey = useApp.getState().settings.geminiKey;
-    if (!apiKey) return;
+    if (!apiKey) { setGenError("Add a Gemini API key in Settings first."); return; }
+
+    const rawSlides = subject.slides || [];
+    if (rawSlides.length === 0) {
+      setGenError("Slides not loaded — go to Library and re-upload your file first.");
+      return;
+    }
 
     setGenerating(true);
     setGenError(null);
 
     // Limit slides & text to keep payload small
-    const slides = (subject.slides || []).slice(0, 30).map((s: any) => ({
+    const slides = rawSlides.slice(0, 30).map((s: any) => ({
       title: s.title,
       blocks: (s.blocks || []).slice(0, 6).map((b: any) => ({
         text: String(b.text || "").slice(0, 200),
@@ -66,10 +72,11 @@ export function FlashcardsView() {
   if (genError) return <FlashcardsError error={genError} onRetry={generate} />;
 
   if (cards.length === 0) {
-    if (!subject.slides || subject.slides.length === 0) return <FlashcardsNoSlides />;
-    if (!useApp.getState().settings.geminiKey) return <FlashcardsNeedKey />;
-    // Show generate button — don't auto-fire
-    return <FlashcardsStart onGenerate={generate} />;
+    const hasSlides = (subject.slides || []).length > 0;
+    const hasKey = !!useApp.getState().settings.geminiKey;
+    if (!hasSlides) return <FlashcardsNoSlides />;
+    if (!hasKey) return <FlashcardsNeedKey />;
+    return <FlashcardsStart onGenerate={generate} error={genError} />;
   }
 
   const card = cards[idx % cards.length];
@@ -234,18 +241,23 @@ function CardFace({ side, children }: { side: "front" | "back"; children: React.
   );
 }
 
-function FlashcardsStart({ onGenerate }: { onGenerate: () => void }) {
+function FlashcardsStart({ onGenerate, error }: { onGenerate: () => void; error: string | null }) {
   return (
     <div className="flex-1 flex items-center justify-center aurora-bg">
-      <div className="text-center max-w-sm">
+      <div className="text-center max-w-sm px-6">
         <Dusty size={110} variant="curious" />
         <h3 className="font-display text-2xl mt-5">Ready to make flashcards?</h3>
         <p className="text-ink-muted mt-2 text-sm">
           Dusty will write cards covering your whole deck. Takes about 20 seconds.
         </p>
+        {error && (
+          <div className="mt-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm">
+            {error}
+          </div>
+        )}
         <button
           onClick={onGenerate}
-          className="mt-6 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
+          className="mt-5 px-6 py-3 rounded-full bg-accent text-accent-ink font-semibold text-sm hover:bg-accent-hover transition-all hover:shadow-glow-strong"
         >
           Generate Flashcards
         </button>
