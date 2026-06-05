@@ -10,7 +10,7 @@ import {
   MOCK_STUDY_SESSIONS,
 } from "./mock-data";
 
-export type ViewName = "library" | "study" | "quiz" | "flashcards" | "notes" | "progress" | "settings";
+export type ViewName = "library" | "study" | "quiz" | "flashcards" | "notes" | "podcast" | "progress" | "settings";
 
 export type AIProvider = "ollama" | "gemini" | "claude";
 
@@ -23,6 +23,7 @@ export interface AppSettings {
   voiceProvider: "browser" | "elevenlabs";
   elevenLabsKey: string;
   voiceRate: number;
+  language: string;
 }
 
 interface AppState {
@@ -71,6 +72,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   voiceProvider: "browser",
   elevenLabsKey: "",
   voiceRate: 1.0,
+  language: "English",
 };
 
 export const useApp = create<AppState>()(

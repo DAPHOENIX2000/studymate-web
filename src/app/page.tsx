@@ -8,6 +8,7 @@ import { StudyView } from "@/components/StudyView";
 import { QuizView } from "@/components/QuizView";
 import { FlashcardsView } from "@/components/FlashcardsView";
 import { NotesView } from "@/components/NotesView";
+import { PodcastView } from "@/components/PodcastView";
 import { ProgressView } from "@/components/ProgressView";
 import { SettingsView } from "@/components/SettingsView";
 import { AboutModal } from "@/components/AboutModal";
@@ -50,6 +51,7 @@ export default function Home() {
           {effectiveView === "quiz" && <QuizView />}
           {effectiveView === "flashcards" && <FlashcardsView />}
           {effectiveView === "notes" && <NotesView />}
+          {effectiveView === "podcast" && <PodcastView />}
           {effectiveView === "progress" && <ProgressView />}
           {effectiveView === "settings" && <SettingsView />}
         </motion.div>

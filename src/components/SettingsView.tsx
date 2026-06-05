@@ -1,6 +1,15 @@
 "use client";
 import { motion } from "framer-motion";
-import { Bot, Volume2, Key, Check, ExternalLink } from "lucide-react";
+import { Bot, Volume2, Globe, Check, ExternalLink } from "lucide-react";
+
+const LANGUAGES = [
+  "English","French","Spanish","Arabic","Chinese (Simplified)","Chinese (Traditional)",
+  "Hindi","Portuguese","German","Italian","Japanese","Korean","Russian","Turkish","Dutch",
+  "Polish","Swedish","Norwegian","Danish","Finnish","Greek","Czech","Romanian","Hungarian",
+  "Thai","Vietnamese","Indonesian","Malay","Filipino","Swahili","Hebrew","Persian",
+  "Ukrainian","Bengali","Tamil","Telugu","Urdu","Punjabi","Gujarati","Marathi",
+  "Kannada","Malayalam","Catalan","Croatian","Slovak","Serbian","Bulgarian",
+];
 import { useApp, type AIProvider } from "@/lib/store";
 import { Dusty } from "./Dusty";
 import { cn } from "@/lib/utils";
@@ -200,6 +209,30 @@ export function SettingsView() {
               </div>
             </>
           )}
+        </Section>
+
+        {/* Language */}
+        <Section icon={Globe} title="Language" subtitle="AI responses, notes, flashcards and podcast will use this language">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang}
+                onClick={() => updateSettings({ language: lang })}
+                className={cn(
+                  "text-left px-3 py-2 rounded-lg border text-sm transition-all",
+                  settings.language === lang
+                    ? "border-accent bg-accent-soft text-accent font-semibold"
+                    : "border-border-subtle bg-bg-card/40 text-ink-muted hover:border-border-strong hover:text-ink",
+                )}
+              >
+                {settings.language === lang && <Check size={10} className="inline mr-1" />}
+                {lang}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-faint mt-3">
+            This affects AI-generated content (quiz explanations, flashcard answers, notes, podcast script). The app UI stays in English.
+          </p>
         </Section>
 
         <div className="text-center mt-10">

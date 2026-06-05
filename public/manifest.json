@@ -1,0 +1,17 @@
+{
+  "name": "StudyMate AI",
+  "short_name": "StudyMate",
+  "description": "Your PowerPoints, PDFs and YouTube videos — taught by Dusty",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080808",
+  "theme_color": "#00F5C4",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/dusty.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/dusty.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

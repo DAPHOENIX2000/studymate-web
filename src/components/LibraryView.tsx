@@ -1,7 +1,7 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Upload, Star, Trash2, MoreHorizontal, Clock, Youtube, FileText, Link } from "lucide-react";
-import { useState, useMemo, useRef } from "react";
+import { Search, Upload, Star, Trash2, MoreHorizontal, Clock, Youtube, Mic, Camera, X } from "lucide-react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useApp } from "@/lib/store";
 import { parsePptxFile } from "@/lib/parse-pptx-client";
 import { parsePdfFile } from "@/lib/parse-pdf-client";
@@ -57,6 +57,17 @@ export function LibraryView() {
   const [youtubeLoading, setYoutubeLoading] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
+  // Audio recording
+  const [recording, setRecording] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  // Photo
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoResult, setPhotoResult] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -144,6 +155,70 @@ export function LibraryView() {
     }
   }
 
+  async function toggleRecording() {
+    const apiKey = useApp.getState().settings.geminiKey;
+    if (!apiKey) { setAudioError("Add a Gemini API key in Settings first."); return; }
+    if (recording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+    } else {
+      // Start recording
+      setAudioError(null);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4" });
+        audioChunksRef.current = [];
+        mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+        mr.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
+          setAudioLoading(true);
+          try {
+            const fd = new FormData();
+            fd.append("audio", blob, "lecture.webm");
+            fd.append("apiKey", apiKey);
+            fd.append("language", useApp.getState().settings.language || "English");
+            const r = await fetch("/api/process-audio", { method: "POST", body: fd });
+            const data = await r.json();
+            if (data.error) { setAudioError(data.error); return; }
+            addSubjectFromData(data);
+          } catch (e: any) {
+            setAudioError(e.message || "Failed to process recording.");
+          } finally {
+            setAudioLoading(false);
+          }
+        };
+        mr.start();
+        mediaRecorderRef.current = mr;
+        setRecording(true);
+      } catch (e: any) {
+        setAudioError("Microphone access denied. Please allow microphone in your browser.");
+      }
+    }
+  }
+
+  async function handlePhoto(files: FileList | null) {
+    if (!files?.[0]) return;
+    const apiKey = useApp.getState().settings.geminiKey;
+    if (!apiKey) { setPhotoError("Add a Gemini API key in Settings first."); return; }
+    setPhotoLoading(true); setPhotoError(null); setPhotoResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("image", files[0]);
+      fd.append("apiKey", apiKey);
+      fd.append("language", useApp.getState().settings.language || "English");
+      const r = await fetch("/api/solve-photo", { method: "POST", body: fd });
+      const data = await r.json();
+      if (data.error) setPhotoError(data.error);
+      else setPhotoResult(data.solution);
+    } catch (e: any) {
+      setPhotoError(e.message || "Failed.");
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
+
   function handleUpload(files: FileList | null) {
     if (!files || !files[0]) return;
     const file = files[0];
@@ -171,6 +246,42 @@ export function LibraryView() {
         handleUpload(e.dataTransfer.files);
       }}
     >
+      {/* Audio / photo status toasts */}
+      <AnimatePresence>
+        {(audioError || audioLoading || photoError || photoLoading) && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass-strong rounded-xl px-5 py-3 text-sm flex items-center gap-3 max-w-sm">
+            {(audioLoading || photoLoading) && <span className="text-accent">⏳</span>}
+            {audioError && <span className="text-rose-400">{audioError}</span>}
+            {photoError && <span className="text-rose-400">{photoError}</span>}
+            {audioLoading && <span className="text-ink-muted">Processing your lecture recording…</span>}
+            {photoLoading && <span className="text-ink-muted">Analysing your image…</span>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Photo result modal */}
+      <AnimatePresence>
+        {photoResult && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6"
+            style={{ background: "rgba(0,0,0,0.8)" }}
+            onClick={() => setPhotoResult(null)}
+          >
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="glass-strong rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto inner-highlight"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-display text-xl font-bold">📸 Solution</h2>
+                <button onClick={() => setPhotoResult(null)} className="text-ink-muted hover:text-ink"><X size={18} /></button>
+              </div>
+              <div className="prose-notes text-sm leading-relaxed whitespace-pre-wrap text-ink-dim">{photoResult}</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Drag overlay */}
       <AnimatePresence>
         {dragOver && (
@@ -255,6 +366,33 @@ export function LibraryView() {
               <span className="hidden sm:inline">YouTube</span>
             </button>
 
+            {/* Record lecture */}
+            <button
+              onClick={toggleRecording}
+              disabled={audioLoading}
+              className={cn(
+                "h-9 px-3 rounded-md text-sm flex items-center gap-2 border transition-all",
+                recording
+                  ? "bg-rose-500 text-white border-rose-500 animate-pulse"
+                  : "glass border-border-subtle text-ink-muted hover:text-ink hover:border-rose-500",
+              )}
+              title={recording ? "Stop recording" : "Record a lecture"}
+            >
+              <Mic size={15} />
+              <span className="hidden sm:inline">{recording ? "Stop" : audioLoading ? "Processing…" : "Record"}</span>
+            </button>
+
+            {/* Photo / equation solver */}
+            <button
+              onClick={() => photoRef.current?.click()}
+              className="h-9 px-3 rounded-md text-sm flex items-center gap-2 glass border border-border-subtle text-ink-muted hover:text-ink hover:border-violet-500 transition-all"
+              title="Solve equation from photo"
+            >
+              <Camera size={15} />
+              <span className="hidden sm:inline">Photo</span>
+              <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhoto(e.target.files)} />
+            </button>
+
             {/* File upload (PPTX + PDF) */}
             <button
               onClick={() => fileRef.current?.click()}
@@ -262,13 +400,7 @@ export function LibraryView() {
             >
               <Upload size={16} />
               <span>Add file</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pptx,.pdf"
-                className="hidden"
-                onChange={(e) => handleUpload(e.target.files)}
-              />
+              <input ref={fileRef} type="file" accept=".pptx,.pdf" className="hidden" onChange={(e) => handleUpload(e.target.files)} />
             </button>
           </div>
         </motion.div>
