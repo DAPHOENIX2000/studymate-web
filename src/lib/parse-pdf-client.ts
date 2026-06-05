@@ -11,8 +11,8 @@ export async function parsePdfFile(file: File): Promise<ParsedPptx> {
 
   // Dynamically import to avoid SSR issues
   const pdfjsLib = await import("pdfjs-dist");
-  // Use local worker to avoid CDN dependency
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  // Use locally hosted worker (avoids CDN fetch failures on Vercel)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
