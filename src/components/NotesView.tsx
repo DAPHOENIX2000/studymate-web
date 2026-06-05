@@ -96,7 +96,12 @@ export function NotesView() {
         <div className="text-center">
           <Dusty size={90} variant="sad" />
           <h3 className="font-display text-xl mt-4">Couldn't generate notes</h3>
-          <p className="text-rose-400 mt-2 text-sm">{error}</p>
+          <p className="text-rose-400 mt-2 text-sm max-w-sm mx-auto">{error}</p>
+          {error?.includes("429") || error?.includes("Rate limit") || error?.includes("busy") ? (
+            <p className="text-ink-muted mt-2 text-xs max-w-xs mx-auto">
+              Gemini's free tier allows ~15 requests/minute. Wait 1-2 minutes, then try again.
+            </p>
+          ) : null}
           <button
             onClick={() => generate(subject.slides, useApp.getState().settings.geminiKey)}
             className="mt-4 px-4 py-2 rounded-md bg-accent text-accent-ink font-semibold text-sm"

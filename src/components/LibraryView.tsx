@@ -109,7 +109,8 @@ export function LibraryView() {
 
     const settings = useApp.getState().settings;
     if (settings.geminiKey) {
-      fetch("/api/generate-glossary", {
+      // Delay glossary so it doesn't race with other auto-calls (quiz, flashcards)
+      setTimeout(() => fetch("/api/generate-glossary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slides: data.slides, apiKey: settings.geminiKey }),
@@ -124,7 +125,7 @@ export function LibraryView() {
             }));
           }
         })
-        .catch(() => {});
+        .catch(() => {}), 8000); // 8s delay — avoids rate limit collision with quiz/flashcard auto-calls
     }
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { geminiPost } from "@/lib/gemini-fetch";
 
 /**
  * Generate a podcast-style narration script from slides.
@@ -42,15 +43,10 @@ ${context}`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 },
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
+    const r = await geminiPost(url, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7 },
+    }, 90000);
 
     if (!r.ok) {
       return NextResponse.json({ error: `Gemini returned ${r.status}` }, { status: 502 });

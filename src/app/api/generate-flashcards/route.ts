@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { geminiPost } from "@/lib/gemini-fetch";
 
 /**
  * Generate flashcards from slide content via Gemini.
@@ -45,16 +46,12 @@ Return ONLY a JSON array (no markdown), each item shaped exactly like:
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.5,
-          responseMimeType: "application/json",
-        },
-      }),
+    const r = await geminiPost(url, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.5,
+        responseMimeType: "application/json",
+      },
     });
 
     if (!r.ok) {

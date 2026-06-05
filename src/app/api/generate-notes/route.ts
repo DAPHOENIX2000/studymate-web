@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { geminiPost } from "@/lib/gemini-fetch";
 
-/**
- * Generate structured study notes from slide content via Gemini.
- * POST: { slides, apiKey }
- * Returns: { notes: string } — markdown formatted
- */
 export async function POST(req: NextRequest) {
   const { slides, apiKey } = await req.json();
 
@@ -39,18 +35,16 @@ ${context}`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3 },
-      }),
-      signal: AbortSignal.timeout(90000),
-    });
+    const r = await geminiPost(url, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.3 },
+    }, 120000);
 
     if (!r.ok) {
-      return NextResponse.json({ error: `Gemini returned ${r.status}` }, { status: 502 });
+      const msg = r.status === 429
+        ? "Rate limit hit — Gemini is busy. Wait 1-2 minutes and click Try again."
+        : `Gemini returned ${r.status}`;
+      return NextResponse.json({ error: msg }, { status: r.status });
     }
 
     const data = await r.json();

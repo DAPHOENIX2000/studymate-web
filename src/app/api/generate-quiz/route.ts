@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { geminiPost } from "@/lib/gemini-fetch";
 
 /**
  * Generate quiz questions via Gemini.
@@ -45,16 +46,12 @@ Rules:
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: "application/json",
-        },
-      }),
+    const r = await geminiPost(url, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      },
     });
 
     if (!r.ok) {
@@ -62,7 +59,7 @@ Rules:
       let hint = "";
       if (r.status === 400 || r.status === 401 || r.status === 403)
         hint = " Check your Gemini API key in Settings.";
-      else if (r.status === 429) hint = " Rate limit hit — wait a moment and try again.";
+      else if (r.status === 429) hint = " Rate limit — wait 1-2 minutes and try again.";
       return NextResponse.json(
         { error: `Gemini returned ${r.status}.${hint}`, questions: [] },
         { status: 502 },
